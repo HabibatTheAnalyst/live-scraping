@@ -15,6 +15,7 @@ from selenium.common.exceptions import TimeoutException
 load_dotenv()
 
 url = os.getenv("SITE_URL")
+parsed_data = None 
 
 def fetch_live_site(url, retries=3, delay=5):
     options = Options()
@@ -45,6 +46,7 @@ def fetch_live_site(url, retries=3, delay=5):
     return
 
 def parse_site_data(html):
+    global parsed_data
     try:
         soup = BeautifulSoup(html, "html.parser")
         header_names = soup.find("thead").find_all("th") # Extract headers
@@ -63,32 +65,29 @@ def parse_site_data(html):
                 for col in cols
             ]
             data.append(values)
-        return {
+        parsed_data = {
             "headers": headers,
             "data": data
         }
-
     except Exception as e:
         print(f"Error parsing site data: {e}")
-        return None
+        parsed_data = None
 
-def save_to_csv(data, filename="output.csv", headers=None):
-    df = pd.DataFrame(data, columns=headers)
+def save_to_csv(filename="financial_services_data.csv"):
+    if not parsed_data:
+        print("No data extracted")
+        return
+    df = pd.DataFrame(parsed_data["data"], columns=parsed_data["headers"])
     df.to_csv(filename, index=False)
     print(f"saved {len(df)} rows to {filename}")
 
-def main():
-    html = fetch_live_site(url)
-    if html:
-        parsed_data = parse_site_data(html)
-        if parsed_data:
-            # print(parsed_data["headers"])
-            # print(parsed_data["data"])
-            save_to_csv(parsed_data["data"], "financial_services_data.csv", parsed_data["headers"])
-        else:
-            print("No data extracted")
+def refresh_financial_data():
+    html_fetch_is_successful = fetch_live_site(url)
+    if html_fetch_is_successful:
+        parse_site_data(html_fetch_is_successful)
+        save_to_csv()
     else:
-        print("Failed to fetch site data")
+        print("html fetch unsuccessful")
 
 if __name__ == "__main__":
-    main()
+    refresh_financial_data()
